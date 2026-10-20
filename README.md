@@ -1,15 +1,14 @@
-# Cloud Bloom
+# Cloud Bloom — 10 worlds of rain
 
-A small rain cloud turns a dry desert into a flowering garden.
+Play: https://andreibohun-hash.github.io/cloud-bloom/
 
-**[Play Cloud Bloom](https://andreibohun-hash.github.io/cloud-bloom/)**
+Guide a little cloud, water whole plants, grow your rain circle, and bring ten
+worlds to bloom: desert, meadow, lavender terraces, sakura, tropical lagoon,
+canyon, alpine spring, firefly forest, rooftop gardens, and sky islands.
 
-Cover an entire garden bed with rain to make it bloom. Grow your cloud, restore three gardens, and awaken the Tree of Life.
+Drag or tap to move. Keyboard: WASD / arrows; Escape pauses; R restarts.
+Restore three sources, then the world's final plant. Some sources feed streams
+that water nearby beds. Wins unlock new worlds; progress is saved in this browser.
 
-Drag or tap to move, or use WASD / arrow keys. Escape pauses, R restarts. Sound can be muted in the top corner.
-
-Version 2: 282 plantings across scattered garden islands, longer growth, falling water drops and splashes, a clear rain boundary, and cartoon shading with finer outlines on small flowers.
-
-One portrait level. Standalone HTML with local Three.js 0.185.1 and embedded Nunito. No external requests, account, purchases, or server required.
-
-A separate reskin of [Lumen Hollow](https://andreibohun-hash.github.io/lumen-hollow/); the original game remains available.
+Single standalone HTML, local fonts, WebAudio sound, no CDN required.
+Three.js is included under the MIT license; see THREE-LICENSE.
