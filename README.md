@@ -8,6 +8,8 @@ Cover an entire garden bed with rain to make it bloom. Grow your cloud, restore 
 
 Drag or tap to move, or use WASD / arrow keys. Escape pauses, R restarts. Sound can be muted in the top corner.
 
+Version 2: 282 plantings across scattered garden islands, longer growth, falling water drops and splashes, a clear rain boundary, and cartoon shading with finer outlines on small flowers.
+
 One portrait level. Standalone HTML with local Three.js 0.185.1 and embedded Nunito. No external requests, account, purchases, or server required.
 
 A separate reskin of [Lumen Hollow](https://andreibohun-hash.github.io/lumen-hollow/); the original game remains available.

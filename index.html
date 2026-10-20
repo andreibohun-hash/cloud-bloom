@@ -38,7 +38,7 @@
 
 /* Cloud Bloom: parchment HUD, rain-blue controls, warm desert canvas. */
 :root{color-scheme:light;--bg:#edddc3;--ink:#324d42;--muted:#7c8267;--gold:#337f9a;--cyan:#67bcbc;--floor:#dfb97b;--moon:#fff3d9;--panel:#fff6df}
-body{background:#edddc3}.vignette{background:linear-gradient(180deg,#f7ecd9ee 0%,#f7ecd900 25%,#f7ecd900 73%,#f7ecd9ee 100%)}
+body{background:#edddc3}.vignette{background:linear-gradient(180deg,#fff4d0cc 0%,#fff4d000 19%,#fff4d000 83%,#fff4d0cc 100%)}
 #frame{background:#dfbd88}.iconbtn{background:#fff9e5d9;border-color:#627f5730;color:#3d6a68}.quest-icon{border-color:#61978640;background:#fff7dc77}
 .growth-track{background:#91896625}.growth-fill{background:linear-gradient(90deg,#6bab72,#58adca)}.hint{color:#526e64}.hint span{background:#fff9e5c9;border-color:#49695220}
 #object-label{background:#fff8e2e8;color:#756b4d;border-color:#8d784526}#object-label[data-kind="dark"]{color:#89704f;border-color:#b1955935}
@@ -62,7 +62,7 @@ body{background:#edddc3}.vignette{background:linear-gradient(180deg,#f7ecd9ee 0%
 <header id="hud" class="hidden">
 <div class="topbar"><div><div class="eyebrow">Глава 01 · Первый дождь</div><div class="location">Забытый сад</div></div><div class="actions"><button class="iconbtn" id="sound" aria-label="Выключить звук"></button><button class="iconbtn" id="pause" aria-label="Пауза"><svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button></div></div>
 <div id="quest"><div class="quest-icon"><svg viewBox="0 0 24 30"><path d="M12 27V13M12 20C3 20 2 12 3 10c7 0 10 4 9 10ZM12 16c0-7 4-10 10-10 0 7-3 10-10 10ZM8 28h8"/></svg></div><div><div class="quest-title" id="quest-title">Оживи три сада</div><div class="quest-sub" id="quest-sub">Начни с маленьких грядок</div></div></div>
-<div id="counter"><b id="cleansed">0</b> расцвело<span id="city-value">Город спит</span></div>
+<div id="counter"><b id="cleansed">0</b> расцвело<span id="city-value">Сад ждёт дождя</span></div>
 <div id="beacons"><span id="beacon-0">◇ Маки</span><span id="beacon-1">◇ Лаванда</span><span id="beacon-2">◇ Солнце</span></div>
 <div class="hint" id="hint"><span>Накрой грядку дождём · веди пальцем</span></div>
 <div id="receipt" role="status"><b id="receipt-value"></b><small>Пустыня становится садом</small></div>
@@ -80113,15 +80113,15 @@ const CFG = {
   worldH: 1600, // Length of the fixed virtual world.
   seed: 81021, // Reproducible seed of level one.
   startRadius: 34, // Initial light radius in world units.
-  energyArea: 142, // Strong early growth, opening a new object size every few gifts.
+  energyArea: 48, // Gradual area growth: touring several beds unlocks the next size.
   maxRadius: 270, // Maximum usable light radius.
   playerSize: 8, // Edge padding for the light spirit.
-  speed: 112, // Movement speed in world units per second.
-  growthSpeed: 0.20, // Additional speed per unit of light radius.
-  captureMs: 165, // Base continuous exposure before cleansing.
-  captureSizeMs: 1.6, // Exposure milliseconds per unit of object radius.
+  speed: 90, // Movement speed in world units per second.
+  growthSpeed: 0.075, // Additional speed per unit of light radius.
+  captureMs: 420, // Short watering exposure: first sprouts bloom during a direct pass.
+  captureSizeMs: 2.4, // Exposure milliseconds per unit of object radius.
   cleanseFxMs: 2100, // Outgoing light flight, spatial reveal and fading stardust.
-  activationMs: 580, // Flight duration from the launch point to the dark object.
+  activationMs: 480, // Flight duration from the launch point to the dark object.
   receiptMs: 1000, // Growth acknowledgment after light has reached the object.
   restorationMs: 1250, // A readable golden reveal followed by a soft settling motion.
   activationPulseMs: 1100, // Warm bloom, elastic response and trailing sparks.
@@ -80178,7 +80178,9 @@ const CFG = {
   tapThreshold: 10, // Pointer travel separating taps from drags.
   uiWidth: 440, // Maximum phone frame width in CSS pixels.
   particleCount: 120, // Seeded background firefly count.
-  rainDrops: 180, // Seeded rain streaks beneath the growing cloud.
+  rainDrops: 100, // Instanced blue drops: continuous rain under the cloud.
+  inkWidth: 1.3, // Dark cartoon contour width in CSS pixels.
+  rainEdgeWidth: 2.6, // Honest rain boundary width in CSS pixels.
   cloudHeight: 68, // Cloud altitude, keeping crops and touch target readable.
   growthDelay: .20, // Flowers open after the stems have started growing.
   storeKey: 'cloud-bloom.v1', // Persistence schema for settings and records.
@@ -80218,19 +80220,33 @@ function createState(){
     ['bench',440,425,0],['bench',685,420,0],['tower',560,235,0],
   ];
   landmarks.forEach(o=>add(...o));
+  // Two inviting first drops lead towards the left-hand beds, then the path opens.
+  add('stone',552,1328);add('stone',540,1287);
   for(const district of DISTRICTS){
     add('beacon',district.x,district.z);
     objects.at(-1).district=district.name;
     for(let i=0;i<5;i++){const a=i*Math.PI*.4;add('pot',district.x+Math.cos(a)*98,district.z+Math.sin(a)*98,a);}
     add('bench',district.x-105,district.z-65,Math.PI/2);
   }
-  // Small gifts lead into side gardens, then across the café court to the plaza.
-  const clusters=[{x:560,z:1305,n:12},{x:430,z:1230,n:9},{x:315,z:1330,n:8},{x:500,z:1080,n:9},{x:650,z:940,n:9},{x:850,z:960,n:8},{x:665,z:720,n:9},{x:520,z:550,n:9}];
-  for(const c of clusters) for(let i=0;i<c.n;i++){
-    const a=i/c.n*Math.PI*2+random()*.28,r=38+random()*36;
-    let x=c.x+Math.cos(a)*r,z=c.z+Math.sin(a)*r;
-    if(Math.hypot(x-560,z-1390)<52)z-=55;
-    add(i%3===0?'pot':'stone',x,z,random()*Math.PI);
+  // Small beds live in side pockets: the central path is navigation, not a growth conveyor.
+  const clusters=[
+    {x:455,z:1400,n:18},{x:230,z:1415,n:16},{x:120,z:1125,n:16},
+    {x:410,z:1110,n:16},{x:680,z:1275,n:18},{x:940,z:1270,n:18},
+    {x:990,z:1015,n:18},{x:750,z:900,n:18},{x:580,z:795,n:14},
+    {x:310,z:835,n:16},{x:120,z:610,n:18},{x:440,z:580,n:16},
+    {x:770,z:575,n:16},{x:990,z:410,n:16},{x:530,z:425,n:12},
+  ];
+  for(const c of clusters){
+    let placed=0;
+    for(let attempt=0;placed<c.n&&attempt<c.n*80;attempt++){
+      const a=random()*Math.PI*2,r=Math.sqrt(random())*105;
+      const x=c.x+Math.cos(a)*r,z=c.z+Math.sin(a)*r;
+      const type=placed%4===0?'pot':'stone',bound=ART[type].bound;
+      if(x<25+bound||x>CFG.worldW-25-bound||z<50||z>1545)continue;
+      if(Math.hypot(x-LEVELS[0].spawn.x,z-LEVELS[0].spawn.z)<62)continue;
+      if(objects.some(o=>Math.hypot(x-o.x,z-o.z)<o.bound+bound+5))continue;
+      add(type,x,z,random()*Math.PI);placed++;
+    }
   }
   return {player:{...LEVELS[0].spawn},objects,energy:0,radius:CFG.startRadius,cleansed:0,status:'playing',now:0,startedAt:0,wonAt:null,events:[],combo:0,lastCleanseAt:-10000};
 }
@@ -80272,7 +80288,7 @@ function botInput(s){
   if(!best)return {x:0,z:0};
   const dx=best.x-s.player.x,dz=best.z-s.player.z,d=Math.hypot(dx,dz);
   if(d<Math.max(1,s.radius-best.bound-5))return {x:0,z:0};
-  return {x:dx/Math.max(1,d),z:dz/Math.max(1,d)};
+  return {x:dx/Math.max(8,d),z:dz/Math.max(8,d)};
 }
 function runBot(mode='novice',seed=1,seconds=240){
   const s=createState(),random=mulberry32(seed);let input={x:0,z:0},next=0;
@@ -80354,36 +80370,44 @@ function installNightShader(shader) {
     uCleanseExtent: this.userData.cleanseExtent || {value:1},
     uFlicker: uniforms.flicker, uWarmthMap: uniforms.warmthMap,
     uWorldSize: {value:new T.Vector2(CFG.worldW,CFG.worldH)},
-    uObject: { value: this.userData.isCollectible ? 1 : 0 },
+    uObject: { value: this.userData.isCloud ? 2 : this.userData.isCollectible ? 1 : 0 },
+    uInkStrength: {value:this.userData.inkStrength ?? (this.userData.isCloud ? 1 : .8)},
     uNight: { value: CFG.nightVisibility },
     uInnerEdge: { value: CFG.lightInnerEdge },
     uOuterEdge: { value: CFG.lightOuterEdge },
   });
-  shader.vertexShader = 'varying vec3 vWorld;\n' + shader.vertexShader;
+  shader.vertexShader = 'varying vec3 vWorld;varying vec3 vToonNormal;\n' + shader.vertexShader;
   shader.vertexShader = shader.vertexShader.replace('#include <worldpos_vertex>', `
     #include <worldpos_vertex>
     vWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
+    vToonNormal=inverseTransformDirection(transformedNormal,viewMatrix);
   `);
-  shader.fragmentShader = NIGHT_GLSL + shader.fragmentShader;
+  shader.fragmentShader = 'varying vec3 vToonNormal;uniform float uInkStrength;\n' + NIGHT_GLSL + shader.fragmentShader;
+  shader.fragmentShader=shader.fragmentShader.replace('#include <shadowmap_pars_fragment>','#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>');
   shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
     vec2 mapUV=vWorld.xz/uWorldSize;
     float inMap=step(0.,mapUV.x)*step(0.,mapUV.y)*step(mapUV.x,1.)*step(mapUV.y,1.);
     float wet=texture2D(uWarmthMap,mapUV).r*inMap;
     float bloom=max(lumenUnveil(vWorld),max(uReveal,lumenDawn(vWorld)));
-    float grain=lumenNoise(vWorld.xz*.11);
-    if(uObject>.5){
-      float shade=clamp(dot(outgoingLight,vec3(.21,.71,.08)),.1,1.6);
-      vec3 dry=vec3(.50,.31,.15)*(.65+shade*.48);
-      vec3 alive=outgoingLight*vec3(1.,1.02,.94)+diffuseColor.rgb*.045;
+    float grain=lumenNoise(vWorld.xz*.035);
+    float facing=dot(normalize(vToonNormal),normalize(vec3(-.45,.85,.35)));
+    float cel=facing<.05?.54:(facing<.55?.82:1.06);
+    cel*=mix(.68,1.,getShadowMask());
+    if(uObject>1.5){outgoingLight=diffuseColor.rgb*cel;}else if(uObject>.5){
+      vec3 dry=mix(vec3(.43,.25,.10),vec3(.69,.44,.19),step(.2,facing))*cel;
+      vec3 alive=diffuseColor.rgb*cel;
       outgoingLight=mix(dry,alive,bloom);
       outgoingLight+=vec3(.20,.34,.08)*4.*bloom*(1.-bloom)*uWake;
     }else{
-      float green=max(wet*.85,lumenDawn(vWorld)*.38);
-      vec3 garden=outgoingLight*vec3(.43,.82,.37);
-      outgoingLight=mix(outgoingLight,garden,green);
-      outgoingLight*=.96+.04*grain;
+      float green=max(smoothstep(.12,.65,wet),lumenDawn(vWorld)*.7);
+      vec3 sand=diffuseColor.rgb*cel;
+      vec3 garden=vec3(.38,.65,.07)*cel;
+      outgoingLight=mix(sand,garden,green);
+      outgoingLight*=.98+.02*step(.5,grain);
     }
     #include <opaque_fragment>
+    // Opaque scene-buffer alpha carries contour weight, not surface transparency.
+    gl_FragColor.a=uInkStrength;
   `);
 }
 function mat(color,options={}) {
@@ -80392,7 +80416,7 @@ function mat(color,options={}) {
   const m=new T.MeshStandardMaterial({color,roughness:.73,metalness:.09,...options});
   m.userData.lightReady={value:1};
   m.onBeforeCompile=installNightShader;
-  m.customProgramCacheKey=()=> 'cloudBloomV1';
+  m.customProgramCacheKey=()=> 'cloudBloomAdaptiveInkV2';
   materials.set(key,m);
   return m;
 }
@@ -80490,8 +80514,8 @@ function captureMaterial(){
       void main(){
         float angle=fract(atan(vLocal.x,vLocal.y)/6.2831853+1.);
         float filled=step(angle,uProgress);
-        vec3 color=mix(vec3(.34,.23,.58),vec3(1.,.76,.36),filled);
-        color=mix(color,vec3(1.,.86,.55),uActivated);
+        vec3 color=mix(vec3(.14,.3,.38),vec3(.25,.76,1.),filled);
+        color=mix(color,vec3(.63,.97,1.),uActivated);
         gl_FragColor=vec4(color,uOpacity*mix(.28,1.,max(filled,uActivated)));
       }`,
   });
@@ -80537,7 +80561,10 @@ function makeModel(o){const g=new T.Group();g.position.set(o.x,0,o.z);g.rotation
       m.userData.restored=restored;
       m.userData.wake=wake;
       m.userData.cleanseOrigin=cleanseOrigin;m.userData.cleanseExtent=cleanseExtent;
-      m.transparent=true;m.onBeforeCompile=installNightShader;
+      const small=o.bound<=14;
+      const finePlant=part.parent!==g&&(part.parent===g.userData.growthParts?.[1]?.node||!['tree','tower'].includes(o.type));
+      m.userData.inkStrength=small?.24:finePlant?.32:o.bound<=26?.42:.85;
+      m.transparent=false;m.onBeforeCompile=installNightShader;
       m.customProgramCacheKey=source.customProgramCacheKey;ownedMaterials.set(source,m);
     }
     part.material=ownedMaterials.get(source);
@@ -80668,7 +80695,7 @@ function makeSilhouette(group,restored,o,cleanseOrigin,cleanseExtent){
 // Models and the HUD stay crisp; no extra light sources are added to the world.
 function createNightPass(){
   const target=()=>new T.WebGLRenderTarget(1,1,{type:T.HalfFloatType,depthBuffer:false});
-  const color=target();color.depthBuffer=true;color.samples=4;
+  const color=target();color.depthBuffer=true;color.samples=4;color.depthTexture=new T.DepthTexture(1,1,T.UnsignedIntType);
   const shapes=target();shapes.depthBuffer=true;
   const horizontal=target(),soft=target(),silhouettes=new T.Scene(),post=new T.Scene();
   const glowShapes=target(),glowHorizontal=target(),glowSoft=target();glowShapes.depthBuffer=true;
@@ -80686,16 +80713,32 @@ function createNightPass(){
       }`,
   });
   const composite=new T.ShaderMaterial({
-    uniforms:{uScene:{value:color.texture},uSilhouettes:{value:soft.texture},uGlow:{value:glowSoft.texture}},
+    uniforms:{uScene:{value:color.texture},uDepth:{value:color.depthTexture},uPixel:{value:new T.Vector2()},uDepthEdge:{value:.0004},uSilhouettes:{value:soft.texture},uGlow:{value:glowSoft.texture}},
     vertexShader:vertex,depthTest:false,depthWrite:false,
-    fragmentShader:`varying vec2 vUv;uniform sampler2D uScene,uSilhouettes,uGlow;
+    fragmentShader:`varying vec2 vUv;uniform sampler2D uScene,uSilhouettes,uGlow,uDepth;uniform vec2 uPixel;uniform float uDepthEdge;
       void main(){
-        vec3 base=texture2D(uScene,vUv).rgb;
+        vec4 surface=texture2D(uScene,vUv);
+        vec3 base=surface.rgb;
         vec3 shape=texture2D(uSilhouettes,vUv).rgb;
         // Bright foreground elements stay crisp when passing a dark silhouette.
         float foreground=smoothstep(.025,.12,max(base.r,max(base.g,base.b)));
         vec3 glow=texture2D(uGlow,vUv).rgb;
-        gl_FragColor=vec4(base+shape*(1.-foreground)+glow,1.);
+        // Inherit the finer contour across an edge, including its ground-side pixel.
+        float weight=min(surface.a,min(min(texture2D(uScene,vUv-vec2(uPixel.x,0.)).a,
+          texture2D(uScene,vUv+vec2(uPixel.x,0.)).a),min(texture2D(uScene,vUv-vec2(0.,uPixel.y)).a,
+          texture2D(uScene,vUv+vec2(0.,uPixel.y)).a)));
+        float width=.25+.75*weight;
+        vec2 pixel=uPixel*width;
+        float d=texture2D(uDepth,vUv).r;
+        float left=texture2D(uDepth,vUv-vec2(pixel.x,0.)).r;
+        float right=texture2D(uDepth,vUv+vec2(pixel.x,0.)).r;
+        float up=texture2D(uDepth,vUv+vec2(0.,pixel.y)).r;
+        float down=texture2D(uDepth,vUv-vec2(0.,pixel.y)).r;
+        // A planar ground slope cancels; only silhouettes and hard creases receive ink.
+        float curve=max(abs(left+right-2.*d),abs(up+down-2.*d));
+        float ink=smoothstep(uDepthEdge*width,uDepthEdge*width*2.2,curve);
+        vec3 painted=mix(base,vec3(.028,.012,.045),ink*(.45+.45*weight));
+        gl_FragColor=vec4(painted+glow*.25,1.);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
@@ -80705,6 +80748,8 @@ function createNightPass(){
 }
 function renderNight(){
   const p=nightPass;
+  p.composite.uniforms.uPixel.value.set(CFG.inkWidth/frame.clientWidth,CFG.inkWidth/frame.clientHeight);
+  p.composite.uniforms.uDepthEdge.value=(camera.right-camera.left)/frame.clientWidth/(camera.far-camera.near)*.75;
   renderer.info.reset();
   renderer.setRenderTarget(p.color);renderer.render(scene,camera);
   const shadows=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;
@@ -80845,9 +80890,10 @@ let rain;
 // ART CLOUD: soft rounded lobes, a cool underside, tiny eyes and rosy cheeks.
 function createCloud(){
   const g=new T.Group(),body=new T.Group();g.add(body);
-  const white=new T.MeshStandardMaterial({color:0xfffcf3,roughness:1}),blue=new T.MeshStandardMaterial({color:0xc9e1df,roughness:1});
+  const white=mat(0xfffce9).clone(),blue=mat(0xc8d9e1).clone();
+  for(const m of [white,blue]){m.userData.isCloud=true;m.onBeforeCompile=installNightShader;}
   for(const [x,y,z,r] of [[0,0,0,21],[-21,-2,0,16],[21,-3,0,17],[-9,11,-2,17],[12,10,-3,15],[0,-8,3,21]]){
-    const puff=mesh(new T.SphereGeometry(r,14,10),y<-5?blue:white,body,x,y,z);puff.scale.set(1,.78,.8);puff.castShadow=false;
+    const puff=mesh(new T.SphereGeometry(r,24,16),y<-5?blue:white,body,x,y,z);puff.scale.set(1,.78,.8);puff.castShadow=false;
   }
   for(const x of [-8,8]){
     const eye=mesh(new T.SphereGeometry(1.7,8,6),new T.MeshBasicMaterial({color:0x41666e}),body,x,0,17);eye.scale.y=1.5;
@@ -80855,19 +80901,35 @@ function createCloud(){
   }
   g.add(new T.Group());halo=glowSprite(80,.045,0xe5fffb);g.add(halo);g.add(glowSprite(1,0));scene.add(g);return g;
 }
+function waterDropGeometry(){
+  return new T.LatheGeometry([[0,-1],[.65,-.9],[.95,-.4],[.92,.15],[.65,.75],[.28,1.5],[0,2.1]].map(p=>new T.Vector2(...p)),10);
+}
 function createRain(){
-  const r=mulberry32(CFG.seed+102),seeds=Array.from({length:CFG.rainDrops},()=>({angle:r()*Math.PI*2,r:Math.sqrt(r())*.97,phase:r()}));
-  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(new Float32Array(CFG.rainDrops*6),3));
-  const lines=new T.LineSegments(geo,new T.LineBasicMaterial({color:0x58a4c4,transparent:true,opacity:.6,depthWrite:false}));lines.frustumCulled=false;scene.add(lines);return {lines,seeds};
+  const r=mulberry32(CFG.seed+102),seeds=Array.from({length:CFG.rainDrops},()=>({angle:r()*Math.PI*2,r:Math.sqrt(r())*.94,phase:r(),size:2.1+r()*.9}));
+  const drops=new T.InstancedMesh(waterDropGeometry(),new T.MeshBasicMaterial({color:0x2faee9,transparent:true,depthWrite:false}),CFG.rainDrops);
+  // Plants write their depth first; rain then tests against it without becoming ink.
+  drops.renderOrder=5;
+  const splashGeo=new T.RingGeometry(.75,1,16);splashGeo.rotateX(-Math.PI/2);
+  const splashes=new T.InstancedMesh(splashGeo,new T.MeshBasicMaterial({color:0x85ecff,transparent:true,opacity:.8,depthWrite:false,side:T.DoubleSide}),CFG.rainDrops);
+  drops.frustumCulled=splashes.frustumCulled=false;scene.add(drops,splashes);
+  return {drops,splashes,seeds,dummy:new T.Object3D()};
 }
 function updateRain(now){
   if(!rain)return;
-  const t=reduced?0:now/1000,height=CFG.cloudHeight+state.radius*.12,a=rain.lines.geometry.attributes.position;
-  const count=Math.min(CFG.rainDrops,Math.round(35+state.radius*.55));
-  rain.lines.geometry.setDrawRange(0,count*2);rain.lines.visible=screen!=='win';rain.lines.material.opacity=reduced?.16:.6;
-  for(let i=0;i<count;i++){const s=rain.seeds[i],x=state.player.x+Math.cos(s.angle)*s.r*state.radius,z=state.player.z+Math.sin(s.angle)*s.r*state.radius,y=4+(1-((t*1.4+s.phase)%1))*height;
-    a.setXYZ(i*2,x,y,z);a.setXYZ(i*2+1,x-1.2,y+8,z-1);
-  }a.needsUpdate=true;
+  const t=reduced?0:now/1000,height=CFG.cloudHeight+state.radius*.12,count=Math.min(CFG.rainDrops,Math.round(26+state.radius*.26));
+  rain.drops.count=rain.splashes.count=count;rain.drops.visible=rain.splashes.visible=screen!=='win'&&!reduced;
+  const d=rain.dummy;
+  for(let i=0;i<count;i++){
+    const s=rain.seeds[i],q=(t*.92+s.phase)%1,fall=Math.min(1,q/.82),end=s.r*state.radius;
+    const cloudScale=1+(state.radius-CFG.startRadius)/125;
+    const fromX=Math.cos(s.angle)*s.r*25*cloudScale,fromZ=Math.sin(s.angle)*s.r*11*cloudScale;
+    const x=state.player.x+fromX+(Math.cos(s.angle)*end-fromX)*fall;
+    const z=state.player.z+fromZ+(Math.sin(s.angle)*end-fromZ)*fall;
+    d.position.set(x,4+(1-fall*fall)*height,z);d.scale.setScalar(q<.82?s.size:.001);d.updateMatrix();rain.drops.setMatrixAt(i,d.matrix);
+    const splash=Math.max(0,(q-.82)/.18);
+    d.position.set(state.player.x+Math.cos(s.angle)*end,2.5,state.player.z+Math.sin(s.angle)*end);d.scale.setScalar(splash>0?1+splash*6:.001);d.updateMatrix();rain.splashes.setMatrixAt(i,d.matrix);
+  }
+  rain.drops.instanceMatrix.needsUpdate=rain.splashes.instanceMatrix.needsUpdate=true;
 }
 
 function mergeGround(group){
@@ -80881,11 +80943,11 @@ function mergeGround(group){
 function buildWorld(){
   scene=new T.Scene();scene.background=new T.Color(0x02050a);
   camera=new T.OrthographicCamera(-200,200,400,-400,1,3000);
-  renderer=new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;stage.appendChild(renderer.domElement);
+  renderer=new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NoToneMapping;renderer.toneMappingExposure=1.0;stage.appendChild(renderer.domElement);
   renderer.info.autoReset=false;
   nightPass=createNightPass();captionPass=createCaptionPass();
   warmthMap=createWarmthMap();uniforms.warmthMap.value=warmthMap.texture;
-  ambient=new T.HemisphereLight(0xe9f4ed,0xb9a077,CFG.nightAmbient);scene.add(ambient);
+  ambient=new T.HemisphereLight(0xffffff,0xb0be8a,CFG.nightAmbient);scene.add(ambient);
   moon=new T.DirectionalLight(0xffedcc,CFG.nightMoon);moon.position.set(-350,900,-200);moon.target.position.set(560,0,800);scene.add(moon,moon.target);
   moon.castShadow=true;moon.shadow.mapSize.set(1024,1024);moon.shadow.camera.left=-1000;moon.shadow.camera.right=1000;moon.shadow.camera.top=1000;moon.shadow.camera.bottom=-1000;moon.shadow.camera.far=2200;moon.shadow.normalBias=1.5;moon.shadow.bias=-.0005;
   light=new T.PointLight(0xd5fbff,0,300,1);scene.add(light);
@@ -80912,19 +80974,27 @@ function buildWorld(){
 
   mergeGround(base);
   glowMap=glowTexture();celebration=createCelebration();
-  // ART RAIN FOOTPRINT: a soft cool shadow, blue rim and delicate surface ripples.
-  field=new T.Mesh(new T.CircleGeometry(1.42,96),new T.ShaderMaterial({
-    transparent:true,depthWrite:false,
+  // ART RAIN FOOTPRINT: a constant-size wet disk and a double rim at the exact capture radius.
+  field=new T.Mesh(new T.CircleGeometry(1,96),new T.ShaderMaterial({
+    transparent:true,depthWrite:false,side:T.DoubleSide,
     uniforms:{uTime:uniforms.time},
     vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader:`varying vec2 vUv;uniform float uTime;void main(){
-      float r=length((vUv-.5)*2.84);float shade=(1.-smoothstep(.3,1.12,r))*.13;
-      float rings=pow(.5+.5*sin(r*39.-uTime*3.),16.)*.025*(1.-smoothstep(.75,1.,r));
-      gl_FragColor=vec4(.26,.48,.46,shade+rings);
-    }`,side:T.DoubleSide
-  }));
-  field.rotation.x=-Math.PI/2;field.position.y=1.7;scene.add(field);
-  fieldEdge=new T.Mesh(new T.RingGeometry(.992,1,128),new T.MeshBasicMaterial({color:0x579bb1,transparent:true,opacity:.35,side:T.DoubleSide,depthWrite:false}));fieldEdge.rotation.x=-Math.PI/2;fieldEdge.position.y=2;scene.add(fieldEdge);
+      float r=length((vUv-.5)*2.);float rings=pow(.5+.5*sin(r*34.-uTime*2.),18.)*.045;
+      gl_FragColor=vec4(.12,.55,.74,.12+rings);
+    }`
+  }));field.rotation.x=-Math.PI/2;field.position.y=1.7;scene.add(field);
+  fieldEdge=new T.Mesh(new T.PlaneGeometry(2.04,2.04),new T.ShaderMaterial({
+    transparent:true,depthTest:false,depthWrite:false,side:T.DoubleSide,
+    uniforms:{uWidth:{value:.04}},
+    vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`varying vec2 vUv;uniform float uWidth;void main(){
+      float r=length((vUv-.5)*2.04),aa=fwidth(r),w=uWidth;
+      float outer=(1.-smoothstep(1.,1.+aa,r))*smoothstep(1.-w*1.8-aa,1.-w*1.8,r);
+      float blue=(1.-smoothstep(1.-w*.22,1.-w*.22+aa,r))*smoothstep(1.-w*1.3-aa,1.-w*1.3,r);
+      gl_FragColor=vec4(mix(vec3(.06,.16,.23),vec3(.28,.81,1.),blue),outer*.95);
+    }`
+  }));fieldEdge.rotation.x=-Math.PI/2;fieldEdge.position.y=2;fieldEdge.renderOrder=4;scene.add(fieldEdge);
   spirit=createCloud();rain=createRain();
 
   const r=mulberry32(CFG.seed+9),p=[];for(let i=0;i<CFG.particleCount;i++)p.push(r()*CFG.worldW,6+r()*75,r()*CFG.worldH);
@@ -80969,28 +81039,29 @@ function disposeEffect(e){
   if(e.spark){scene.remove(e.spark);e.spark.material.dispose();}
   if(e.points){scene.remove(e.points);e.points.geometry.dispose();e.points.material.dispose();}
   for(const ribbon of e.ribbons||[]){scene.remove(ribbon);ribbon.geometry.dispose();ribbon.material.dispose();}
+  for(const drop of e.waterTrail||[]){scene.remove(drop);drop.traverse(p=>{p.geometry?.dispose();p.material?.dispose();});}
   if(e.seed){scene.remove(e.seed);e.seed.traverse(part=>{if(part.isMesh)part.geometry.dispose();part.material?.dispose();});}
 }
 function ripple(x,z,at,maxRadius=state.radius,strong=false,duration=1100){const m=new T.Mesh(new T.RingGeometry(strong?.989:.985,1,80),new T.MeshBasicMaterial({color:0x83c9cb,transparent:true,opacity:.5,side:T.DoubleSide,depthWrite:false,depthTest:!strong}));m.rotation.x=-Math.PI/2;m.position.set(x,3,z);m.renderOrder=strong?5:0;scene.add(m);ripples.push({mesh:m,at,radius:maxRadius,strong,duration});}
 function impactHeight(o){return Math.min(100,Math.max(9,o.height*.55));}
 // ART WATER DROP: a cool glossy droplet falls from the cloud into the soil.
 function makeLightSeed(o){
-  const group=new T.Group(),size=3.4+Math.min(4.5,o.bound*.035);
-  group.add(glowSprite(size*5,.18,0xa8e7ec));group.add(glowSprite(size*2,.28,0xe4ffff));
-  const core=new T.Mesh(new T.SphereGeometry(size*.65,10,8),new T.MeshBasicMaterial({color:0x8dd7e5,transparent:true,depthTest:false,depthWrite:false}));core.scale.y=1.55;group.add(core);
+  const group=new T.Group(),size=3.8+Math.min(3,o.bound*.025);
+  const core=new T.Mesh(waterDropGeometry(),new T.MeshBasicMaterial({color:0x279fdf,transparent:true,depthTest:false,depthWrite:false}));core.scale.setScalar(size);group.add(core);
+  const shine=new T.Mesh(new T.SphereGeometry(1,8,6),new T.MeshBasicMaterial({color:0xd0f9ff,transparent:true,depthTest:false,depthWrite:false}));shine.position.set(-size*.32,size*.25,size*.7);shine.scale.set(size*.2,size*.58,size*.14);group.add(shine);
   group.traverse(p=>p.renderOrder=7);scene.add(group);return group;
 }
 
 // The origin is a launch snapshot. Walking away cannot reverse or drag the shot.
 function lightPath(e,s){
-  const dx=e.target.x-e.from.x,dz=e.target.z-e.from.z,d=Math.max(1,Math.hypot(dx,dz));
-  const bend=Math.sin(s*Math.PI),side=(e.o.id%2?1:-1)*Math.min(22,d*.14)*bend;
-  return {x:e.from.x+dx*s-dz/d*side,
-    y:e.from.y+(e.target.y-e.from.y)*s+(CFG.lightArc+Math.min(34,d*.18))*bend,
-    z:e.from.z+dz*s+dx/d*side};
+  // Gravity accelerates the fall; the path never rises or curls like a magic bolt.
+  const fall=s*s;
+  return {x:e.from.x+(e.target.x-e.from.x)*s,
+    y:e.from.y+(e.target.y-e.from.y)*fall,
+    z:e.from.z+(e.target.z-e.from.z)*s};
 }
 function cleanseFx(o,at){
-  const from={x:state.player.x,y:CFG.cloudHeight+state.radius*.12,z:state.player.z},target={x:o.x,y:impactHeight(o),z:o.z};
+  const from={x:state.player.x,y:CFG.cloudHeight+state.radius*.12,z:state.player.z},target={x:o.x,y:5,z:o.z};
   const spark=glowSprite(Math.min(260,40+o.bound*2.4),0);scene.add(spark);spark.position.set(target.x,target.y,target.z);spark.renderOrder=4;
   const random=mulberry32(CFG.seed+o.id*77),coords=[],vel=[];
   for(let i=0;i<18;i++){
@@ -80998,35 +81069,11 @@ function cleanseFx(o,at){
     vel.push([Math.cos(a)*r,8+random()*24,Math.sin(a)*r]);
   }
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(coords,3));
-  const points=new T.Points(geo,new T.PointsMaterial({map:glowMap,size:5,color:0xf4b9a5,transparent:true,opacity:0,depthWrite:false,depthTest:false,blending:T.AdditiveBlending}));points.renderOrder=5;scene.add(points);
-  const ribbons=[];
-  for(let j=0;j<CFG.lightThreads;j++){
-    const positions=[],uv=[],indices=[];
-    for(let i=0;i<=CFG.ribbonSegments;i++){
-      positions.push(from.x,from.y,from.z,from.x,from.y,from.z);uv.push(0,i/CFG.ribbonSegments,1,i/CFG.ribbonSegments);
-      if(i<CFG.ribbonSegments){const k=i*2;indices.push(k,k+1,k+2,k+1,k+3,k+2);}
-    }
-    const geometry=new T.BufferGeometry();
-    geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
-    geometry.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geometry.setIndex(indices);
-    const material=new T.ShaderMaterial({
-      transparent:true,depthWrite:false,depthTest:false,side:T.DoubleSide,blending:T.AdditiveBlending,
-      uniforms:{uFade:{value:0},uCore:{value:j}},
-      vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-      fragmentShader:`varying vec2 vUv;uniform float uFade,uCore;
-        void main(){
-          float x=(vUv.x-.5)*2.;
-          float across=exp(-x*x*4.)*(1.-smoothstep(.55,1.,abs(x)));
-          float tail=smoothstep(0.,.32,vUv.y);
-          vec3 gold=mix(vec3(.25,.66,.83),vec3(.8,.98,1.),uCore);
-          gl_FragColor=vec4(gold,across*tail*uFade*mix(.42,.85,uCore));
-        }`,
-    });
-    const ribbon=new T.Mesh(geometry,material);ribbon.frustumCulled=false;ribbon.renderOrder=6;
-    scene.add(ribbon);ribbons.push(ribbon);
-  }
+  const points=new T.Points(geo,new T.PointsMaterial({map:glowMap,size:5,color:0x58caff,transparent:true,opacity:0,depthWrite:false,depthTest:false,blending:T.AdditiveBlending}));points.renderOrder=5;scene.add(points);
+  const ribbons=[]; // Kept as an empty legacy field for the runtime replay contract.
+  const waterTrail=Array.from({length:3},()=>makeLightSeed({bound:0}));
   const seed=makeLightSeed(o);seed.position.set(from.x,from.y,from.z);
-  effects.push({o,at,spark,points,vel,ribbons,seed,activated:false,received:false,from,target});
+  effects.push({o,at,spark,points,vel,ribbons,waterTrail,seed,activated:false,received:false,from,target});
   feedback.launchedAt=at;log('fx.start','light.gift',o.type);
 }
 function activateObject(e,now){
@@ -81059,7 +81106,7 @@ function updateCleansingEffects(now){
     if(!e.activated&&age>=CFG.activationMs)activateObject(e,now);
     if(!e.received&&age>=CFG.receiptMs)acknowledgeLight(e,now);
     const bloom=Math.max(0,Math.min(1,(age-CFG.activationMs)/CFG.activationPulseMs));
-    e.spark.material.opacity=Math.sin(bloom*Math.PI)*(reduced?.20:.48);
+    e.spark.material.color.set(0x76d8ef);e.spark.material.opacity=Math.sin(bloom*Math.PI)*(reduced?.10:.20);
     const head=lightPath(e,travel);e.seed.position.set(head.x,head.y,head.z);
     e.seed.visible=!reduced&&age<CFG.activationMs;
     e.seed.scale.setScalar(.75+.25*Math.sin(flight*Math.PI));
@@ -81070,21 +81117,10 @@ function updateCleansingEffects(now){
       arr.setXYZ(j,e.o.x+v[0]*spread,e.target.y+v[1]*spread-(reduced?0:dispersion*dispersion*10),e.o.z+v[2]*spread);
     }
     arr.needsUpdate=true;e.points.material.opacity=Math.sin(dispersion*Math.PI)*.8;
-    for(let j=0;j<e.ribbons.length;j++){
-      const ribbon=e.ribbons[j],a=ribbon.geometry.attributes.position;
-      for(let n=0;n<=CFG.ribbonSegments;n++){
-        const v=n/CFG.ribbonSegments,s=Math.max(0,travel-(1-v)*CFG.lightTail);
-        const point=lightPath(e,s),before=lightPath(e,Math.max(0,s-.008)),after=lightPath(e,Math.min(1,s+.008));
-        const dx=after.x-before.x,dy=after.y-before.y,dz=after.z-before.z;
-        // Ribbon side is perpendicular to its tangent in the fixed camera plane.
-        let sx=dy*.577-dz*.816,sy=-dx*.577,sz=dx*.816;
-        const norm=Math.max(.001,Math.hypot(sx,sy,sz));sx/=norm;sy/=norm;sz/=norm;
-        const width=(j===0?5+e.o.bound*.025:.7+e.o.bound*.004)*(.18+.82*v);
-        a.setXYZ(n*2,point.x-sx*width,point.y-sy*width,point.z-sz*width);
-        a.setXYZ(n*2+1,point.x+sx*width,point.y+sy*width,point.z+sz*width);
-      }
-      a.needsUpdate=true;ribbon.visible=!reduced&&age<CFG.activationMs+220;
-      ribbon.material.uniforms.uFade.value=Math.min(1,age/90)*(1-Math.max(0,Math.min(1,(age-CFG.activationMs)/220)));
+    for(let j=0;j<(e.waterTrail||[]).length;j++){
+      const drop=e.waterTrail[j],s=Math.max(0,travel-(j+1)*.11),pos=lightPath(e,s);
+      drop.position.set(pos.x,pos.y,pos.z);drop.scale.setScalar(.52-j*.12);
+      drop.visible=!reduced&&travel>(j+1)*.11&&age<CFG.activationMs;
     }
     if(p>=1){disposeEffect(e);effects.splice(i--,1);log('fx.end','light.gift',e.o.type);}
   }
@@ -81175,8 +81211,8 @@ function render(now){
   spirit.children[1].scale.setScalar(Math.sqrt(power));spirit.children[3].scale.setScalar(32*power);
   halo.material.opacity=.035;halo.scale.setScalar(70*power);
   for(let i=0;i<trail.length;i++)trail[i].scale.setScalar((13-i)*Math.sqrt(power));
-  field.position.set(state.player.x,1.7,state.player.z);field.scale.setScalar(state.radius*breath);
-  fieldEdge.position.set(state.player.x,2,state.player.z);fieldEdge.scale.setScalar(state.radius);fieldEdge.material.opacity=.32+Math.sin(t*2)*.025;
+  field.position.set(state.player.x,1.7,state.player.z);field.scale.setScalar(state.radius);
+  fieldEdge.position.set(state.player.x,2,state.player.z);fieldEdge.scale.setScalar(state.radius);fieldEdge.material.uniforms.uWidth.value=CFG.rainEdgeWidth*(camera.right-camera.left)/frame.clientWidth/state.radius;
   let label=null,labelText='',labelKind='dark',best=Infinity;
   for(const o of state.objects){const m=modelMap.get(o.id);updateRestoredModel(m,o,now);if(o.status==='dark'){
       const c=containment(state,o);
