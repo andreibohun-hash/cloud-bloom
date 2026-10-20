@@ -1,22 +1,22 @@
-# Cloud Bloom — grow a desert into an oasis
+# Cloud Bloom
 
-Play: https://andreibohun-hash.github.io/cloud-bloom/
+A small cloud turns three desert gardens into bloom. Start with little plants,
+grow through larger beds, and awaken the final flower beneath a rainbow.
 
-Three new short desert levels with the original 3D foliage, expressive cloud,
-wind and rain animations. Start with tiny plants, grow, then water larger beds.
-Each size unlocks the next: three growth moments in First Life, four in Growing
-Oasis, and six in Giant Awakening. The final flower requires the biggest cloud.
+Play: https://andreibohun-hash.github.io/cloud-bloom/?v=7
 
-Drag to steer with a floating joystick, or tap a reachable plant. WASD / arrows
-also work; Escape pauses and R restarts. Slow finger reversals turn the cloud
-without returning to the original touch position.
+## Version 7
 
-At the finale the cloud moves aside, rain stops, and a bright rainbow frames
-the main flower. Reduced motion preserves the full static composition.
+- Faster, more responsive movement and quicker watering and blooming.
+- Elastic cloud reactions to blooming plants and stronger level-up feedback.
+- A gold arc around the blue rain boundary shows progress toward the next size.
+  It briefly completes on a level-up, then starts the next growth stage.
+- Three mandatory size-progression levels, original procedural plant models,
+  expressive cloud face and an unobstructed flower-and-rainbow finale.
+- Touch drag, tap-to-move and WASD/arrows; sound toggle and reduced-motion support.
 
-All three gardens can be selected. Completed rewards and settings are retained;
-older incompatible partial maps restart. Progress is stored in this browser.
+The game runs from one self-contained HTML file. Three.js 0.185.1 and Nunito
+are bundled without external CDN dependencies. See THREE-LICENSE.
 
-Version 6, 20 October 2026. One standalone HTML with embedded font and Three.js;
-no CDN. WebAudio sound. Original geometry inspired by gardening-game references;
-no extracted third-party game assets. Three.js: MIT license, see THREE-LICENSE.
+Verified: 82 automated tests, all campaign routes reachable by a bot, no idle
+completion, and a desktop Chrome gameplay check. Physical phones not tested.

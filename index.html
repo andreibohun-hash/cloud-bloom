@@ -80100,9 +80100,9 @@ const CFG = {
   worldW: 1120, // Width of the fixed virtual world.
   worldH: 1600, // Length of the fixed virtual world.
   seed: 81021, // Reproducible seed of level one.
-  bedWaterMs: 1100, // Distinct beds need a readable watering beat before blooming.
-  bedSizeMs: 5, // Added watering time per unit of bed radius.
-  smallWaterMs: 300, // Small flowers retain water across separate visits.
+  bedWaterMs: 800, // A short, readable watering beat before a distinct bed blooms.
+  bedSizeMs: 4, // Added watering time per unit of bed radius.
+  smallWaterMs: 220, // Small flowers bloom on a pass and retain water between visits.
   rainRadius: 65, // Normal rain unlocks at this radius.
   stormRadius: 105, // Storm rain unlocks at this radius.
   rainPowers: [1,1.65,2.4], // Moisture per absolute watering interval.
@@ -80117,14 +80117,20 @@ const CFG = {
   maxRainScreenFraction: .68, // Preserve visible route around a large rain circle.
   batchSettleMs: 2200, // Merge fully settled plants after the bloom animation.
   layoutRevision: 4, // Partial saves are tied to authored map geometry.
-  motionResponse: .075, // Seconds to accelerate toward the finger direction.
-  motionBrake: .045, // Short responsive coast after release or reversal.
+  motionResponse: .055, // Seconds to accelerate toward the finger direction.
+  motionBrake: .035, // Short responsive coast after release or reversal.
   joystickReversePx: 2, // Ignore subpixel finger jitter before moving the touch origin.
   finaleCameraMs: 1800, // Establish reward framing before the open celebration ends.
   finaleRetreatMs: 900, // Cloud leaves the flower during its visible bloom.
   finaleMinWidth: 620, // Keep the reward and rainbow large in a portrait frame.
   finaleWidthScale: 6.4, // Frame scales with the final flower radius.
-  levelPopMs: 1100, // One-shot elastic upgrade and particle lifetime.
+  levelPopMs: 900, // One-shot elastic upgrade and particle lifetime.
+  levelPopStrength: .44, // Body stretch on a growth, without changing the capture radius.
+  bloomKickMs: 420, // Small happy recoil when a plant opens.
+  bloomKickStrength: .13, // Smaller than the distinct level-up squash.
+  growthRingWidthPx: 3.8, // Gold progress track width in CSS pixels.
+  growthRingGapPx: 3.5, // Visible gap outside the exact blue rain boundary.
+  growthRingFlashMs: 240, // Brief completed ring before showing the new rank's progress.
   emotionJoyMs: 1000, // Smile after a plant visibly blooms.
   cloudRanks: [ // Energy threshold, honest radius, body size and active raindrops.
     {energy:0,radius:28,scale:.66,drops:10},{energy:8,radius:40,scale:.85,drops:18},
@@ -80136,14 +80142,14 @@ const CFG = {
   energyArea: 42, // Gradual area growth: touring several beds unlocks the next size.
   maxRadius: 270, // Maximum usable light radius.
   playerSize: 8, // Edge padding for the light spirit.
-  speed: 98, // Movement speed in world units per second.
+  speed: 124, // Movement speed in world units per second.
   growthSpeed: 0.075, // Additional speed per unit of light radius.
   captureMs: 420, // Short watering exposure: first sprouts bloom during a direct pass.
   captureSizeMs: 2.4, // Exposure milliseconds per unit of object radius.
   cleanseFxMs: 2100, // Outgoing light flight, spatial reveal and fading stardust.
-  activationMs: 480, // Flight duration from the launch point to the dark object.
+  activationMs: 300, // Flight duration from the launch point to the dark object.
   receiptMs: 1000, // Growth acknowledgment after light has reached the object.
-  restorationMs: 1250, // A readable golden reveal followed by a soft settling motion.
+  restorationMs: 900, // Brisk opening followed by a soft settling motion.
   activationPulseMs: 1100, // Warm bloom, elastic response and trailing sparks.
   restoreLift: 1.5, // Maximum small-object lift during the restoration response.
   cityAmbient: 0.19, // Ground illumination gained as the sleeping town awakens.
@@ -80483,7 +80489,7 @@ let toastUntil=0,lastStage=0,lastUI=0,lastInputAt=-10000,camX=state.player.x,cam
 const input={id:null,x:0,z:0,startX:0,startY:0,lastX:0,lastY:0,drag:false,target:null,keys:new Set()};
 const modelMap=new Map(),effects=[],ripples=[],lightCaptions=[];
 const feedback={at:-10000,value:0,activatedAt:-10000,launchedAt:-10000,object:null};
-let renderer,scene,camera,light,moon,ambient,spirit,halo,field,fieldEdge,stars,ground,skyDawn,nightPass,warmthMap,captionPass,celebration,levelBurst;
+let renderer,scene,camera,light,moon,ambient,spirit,halo,field,fieldEdge,growthRing,stars,ground,skyDawn,nightPass,warmthMap,captionPass,celebration,levelBurst;
 const uniforms={lightCenter:{value:new T.Vector2(state.player.x,state.player.z)},lightRadius:{value:state.radius},time:{value:0},reveal:{value:0},dawn:{value:0},city:{value:0},glowPass:{value:0},dawnOrigin:{value:new T.Vector2(560,235)},flicker:{value:1},warmthMap:{value:null}};
 const materials=new Map();
 const theme=()=>LEVELS[state.levelIndex];
@@ -81138,17 +81144,20 @@ function createCloud(){
 }
 function updateCloud(now){
  if(!spirit)return;const rank=cloudLevel(state),t=reduced?0:now/1000,body=spirit.children[0],v=state.velocity||{x:0,z:0};
- const age=now-state.lastLevelAt,q=Math.max(0,age/CFG.levelPopMs),pop=!reduced&&age>=0&&q<1?Math.sin(q*Math.PI*3)*Math.exp(-q*4)*.30:0;
+ const age=now-state.lastLevelAt,q=Math.max(0,age/CFG.levelPopMs),pop=!reduced&&age>=0&&q<1?Math.sin(q*Math.PI*3)*Math.exp(-q*4)*CFG.levelPopStrength:0;
  const final=state.objects.find(o=>o.type==='tower'),won=state.status==='won';
  const retreat=won?Math.max(0,Math.min(1,(now-state.wonAt)/CFG.finaleRetreatMs)):0;
  const slide=reduced?(won?1:0):retreat*retreat*(3-2*retreat),size=rank.scale*(1-slide*.25);
- const travel=reduced||won?0:Math.min(1,Math.hypot(v.x,v.z)/105);
- body.scale.set(size*(1-pop*.45+travel*.07),size*(1+pop-travel*.09),size*(1-pop*.25));
- body.rotation.set(reduced||won?0:v.z*.0012,0,reduced?0:(won?Math.sin(t*4)*.035:-v.x*.0018+Math.sin(t*1.7)*.018));
- spirit.position.set(state.player.x+(final.x+final.bound*1.4+70-state.player.x)*slide,CFG.cloudHeight+state.radius*.12+(reduced?0:Math.sin(t*(won?4:2.6))*(won?3:2)),state.player.z+(final.z+final.bound*1.1+60-state.player.z)*slide);
+ const kind=cloudMood(state,now).kind,travel=reduced||won?0:Math.min(1,Math.hypot(v.x,v.z)/(CFG.speed+state.radius*CFG.growthSpeed));
+ const bloomAge=(now-state.lastCleanseAt-CFG.activationMs)/CFG.bloomKickMs;
+ const kick=!reduced&&!won&&bloomAge>=0&&bloomAge<1&&age>CFG.levelPopMs?Math.sin(bloomAge*Math.PI*2)*Math.exp(-bloomAge*3)*CFG.bloomKickStrength:0;
+ const effort=!reduced&&!won&&kind==='effort'?Math.sin(t*12)*.025:0,spring=pop+kick+effort;
+ body.scale.set(size*(1-spring*.45+travel*.12),size*(1+spring-travel*.13),size*(1-spring*.25));
+ body.rotation.set(reduced||won?0:v.z*.0014,0,reduced?0:(won?Math.sin(t*4)*.035:-v.x*.002+Math.sin(t*1.7)*.018));
+ spirit.position.set(state.player.x+(final.x+final.bound*1.4+70-state.player.x)*slide,CFG.cloudHeight+state.radius*.12+(reduced?0:Math.sin(t*(won?4:2.6))*(won?3:2)+Math.max(0,kick)*28),state.player.z+(final.z+final.bound*1.1+60-state.player.z)*slide);
  const tint={dew:0xffffff,sun:0xffedba,rose:0xffdbe5,lilac:0xe3d8fa}[saved.style]||0xffffff;
  body.children.slice(0,6).forEach((l,i)=>l.material.color.set(i===5?new T.Color(tint).lerp(new T.Color(0xbddceb),.22):tint));
- const f=spirit.userData.face,kind=cloudMood(state,now).kind;f.kind=kind;
+ const f=spirit.userData.face;f.kind=kind;
  for(const [name,m]of Object.entries(f.mouths))m.visible=name===kind;
  const blink=!reduced&&t%4.7>4.55;
  f.eyes.forEach((eye,i)=>{eye.visible=kind!=='happy';eye.scale.y=blink?.12:kind==='effort'?.7:kind==='confused'?(i?.85:1.5):1.3;});
@@ -81168,6 +81177,45 @@ function updateLevelBurst(now){
  b.group.position.set(state.player.x,3,state.player.z);b.ring.scale.setScalar(state.radius*(.85+q*.65));b.ring.material.opacity=(1-q)*.8;
  for(let i=0;i<32;i++){const a=i*2.39996,r=state.radius*(.3+q*.8),d=b.dummy;d.position.set(Math.cos(a)*r,10+Math.sin(q*Math.PI)*(24+i%4*6),Math.sin(a)*r);d.rotation.set(q*4+i,q*3,0);d.scale.setScalar((1-q)*(2+i%3));d.updateMatrix();b.sparks.setMatrixAt(i,d.matrix);}
  b.sparks.instanceMatrix.needsUpdate=true;b.sparks.material.opacity=1-q;
+}
+// ART GROWTH GAUGE: clockwise gold arc outside the unchanged blue capture edge.
+// One mesh; the track, rounded endpoint and reward pulse share a single shader.
+function createGrowthRing(){
+ const ring=new T.Mesh(new T.PlaneGeometry(2.4,2.4),new T.ShaderMaterial({
+  transparent:true,depthTest:false,depthWrite:false,side:T.DoubleSide,
+  uniforms:{uProgress:{value:0},uWidth:{value:.1},uPulse:{value:0}},
+  vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`varying vec2 vUv;uniform float uProgress,uWidth,uPulse;
+   void main(){
+    vec2 p=(vUv-.5)*2.4;float r=length(p),aa=fwidth(r),w=uWidth;
+    float edge=abs(r-1.),track=1.-smoothstep(w*.5-aa,w*.5+aa,edge);
+    float outline=1.-smoothstep(w*.8-aa,w*.8+aa,edge);
+    float phase=fract(atan(p.x,p.y)/6.2831853+1.);
+    float fill=step(phase,uProgress)*step(.00001,uProgress);
+    float a=uProgress*6.2831853;
+    float tip=1.-smoothstep(w*.55-aa,w*.55+aa,length(p-vec2(sin(a),cos(a))));
+    tip*=step(.00001,uProgress)*(1.-step(.99999,uProgress));
+    vec3 gold=mix(vec3(1.,.74,.12),vec3(1.,.98,.75),uPulse*.7);
+    vec3 color=mix(vec3(.20,.25,.22),gold,track*fill);
+    color=mix(color,vec3(1.,1.,.92),tip);
+    float alpha=max(outline*.32,max(track*mix(.38,1.,fill),tip));
+    gl_FragColor=vec4(color,alpha);
+   }`
+ }));
+ ring.rotation.x=-Math.PI/2;ring.renderOrder=4;scene.add(ring);return ring;
+}
+function updateGrowthRing(now){
+ if(!growthRing)return;
+ growthRing.visible=screen==='playing'&&state.status==='playing';if(!growthRing.visible)return;
+ const rank=cloudLevel(state),age=now-state.lastLevelAt;
+ const flash=!reduced&&age>=0&&age<CFG.growthRingFlashMs;
+ const pixels=(camera.right-camera.left)/frame.clientWidth;
+ const radius=state.radius+pixels*(CFG.growthRingGapPx+CFG.growthRingWidthPx*.5);
+ growthRing.position.set(state.player.x,2.2,state.player.z);growthRing.scale.setScalar(radius);
+ const u=growthRing.material.uniforms;
+ u.uWidth.value=CFG.growthRingWidthPx*pixels/radius;
+ u.uProgress.value=flash?1:rank.progress;
+ u.uPulse.value=flash?1-age/CFG.growthRingFlashMs:0;
 }
 function waterDropGeometry(){
   return new T.LatheGeometry([[0,-1],[.65,-.9],[.95,-.4],[.92,.15],[.65,.75],[.28,1.5],[0,2.1]].map(p=>new T.Vector2(...p)),10);
@@ -81289,7 +81337,7 @@ function buildWorld(){
       gl_FragColor=vec4(mix(vec3(.06,.16,.23),vec3(.28,.81,1.),blue),outer*.95);
     }`
   }));fieldEdge.rotation.x=-Math.PI/2;fieldEdge.position.y=2;fieldEdge.renderOrder=4;scene.add(fieldEdge);
-  spirit=createCloud();rain=createRain();levelBurst=createLevelBurst();
+  spirit=createCloud();rain=createRain();levelBurst=createLevelBurst();growthRing=createGrowthRing();
 
   const r=mulberry32(CFG.seed+9),p=[];for(let i=0;i<CFG.particleCount;i++)p.push(r()*CFG.worldW,6+r()*75,r()*CFG.worldH);
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(p,3));stars=new T.Points(geo,new T.PointsMaterial({map:glowMap,color:0xfff4c9,size:3,transparent:true,opacity:.10,depthWrite:false,blending:T.AdditiveBlending}));
@@ -81572,7 +81620,7 @@ function render(now){
     m.silhouette.scale.copy(m.group.scale);
     m.silhouette.visible=false;
   }
-  updateCamera(now);renderNight();renderLightCaptions(now);
+  updateCamera(now);updateGrowthRing(now);renderNight();renderLightCaptions(now);
   const el=$('#object-label');
   if(label&&(label.value>3||label.type==='tower')&&screen==='playing'&&state.status==='playing'&&now-feedback.activatedAt>=CFG.captionDelayMs+CFG.captionMs){
     const v=new T.Vector3(label.x,label.height+14,label.z).project(camera);
