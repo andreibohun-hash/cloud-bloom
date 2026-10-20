@@ -80100,6 +80100,8 @@ const CFG = {
   worldW: 1120, // Width of the fixed virtual world.
   worldH: 1600, // Length of the fixed virtual world.
   seed: 81021, // Reproducible seed of level one.
+  bedWaterMs: 1100, // Distinct beds need a readable watering beat before blooming.
+  bedSizeMs: 5, // Added watering time per unit of bed radius.
   smallWaterMs: 300, // Small flowers retain water across separate visits.
   rainRadius: 65, // Normal rain unlocks at this radius.
   stormRadius: 105, // Storm rain unlocks at this radius.
@@ -80114,9 +80116,14 @@ const CFG = {
   gardenCameraWidth: 1400, // Full garden view after a completed chapter.
   maxRainScreenFraction: .68, // Preserve visible route around a large rain circle.
   batchSettleMs: 2200, // Merge fully settled plants after the bloom animation.
-  layoutRevision: 3, // Partial saves are tied to authored map geometry.
-  motionResponse: .10, // Seconds to accelerate toward the finger direction.
-  motionBrake: .065, // Short responsive coast after release or reversal.
+  layoutRevision: 4, // Partial saves are tied to authored map geometry.
+  motionResponse: .075, // Seconds to accelerate toward the finger direction.
+  motionBrake: .045, // Short responsive coast after release or reversal.
+  joystickReversePx: 2, // Ignore subpixel finger jitter before moving the touch origin.
+  finaleCameraMs: 1800, // Establish reward framing before the open celebration ends.
+  finaleRetreatMs: 900, // Cloud leaves the flower during its visible bloom.
+  finaleMinWidth: 620, // Keep the reward and rainbow large in a portrait frame.
+  finaleWidthScale: 6.4, // Frame scales with the final flower radius.
   levelPopMs: 1100, // One-shot elastic upgrade and particle lifetime.
   emotionJoyMs: 1000, // Smile after a plant visibly blooms.
   cloudRanks: [ // Energy threshold, honest radius, body size and active raindrops.
@@ -80168,7 +80175,7 @@ const CFG = {
   lightSway: 3.0, // Local light-source sway in world units.
   fixedStep: 1 / 120, // Fixed motion integration step.
   maxSteps: 24, // Spiral-of-death guard for delayed frames.
-  victoryMs: 5400, // Let the tower, wave and city panorama breathe before results.
+  victoryMs: 6500, // Let the tower, wave and city panorama breathe before results.
   worldMargin: 28, // Visual border padding.
   cameraWidth: 355, // Virtual camera width at the start.
   cameraGrowth: 1.12, // Slower zoom-out makes the growing pool visibly expand.
@@ -80224,9 +80231,9 @@ const BIOMES = [
 ];
 // Each garden introduces a decision; palette and plant art come from the existing biomes.
 const GARDENS = [
- {name:'Ромашковая дорожка',species:'daisy',final:'Большая ромашка',biome:1,tag:'Дорожка к жизни',clusters:3,density:20,finalBound:48,quota:24,targets:0,sources:0,requiredSources:0,reward:'Ромашка',hint:'Веди дождь по росткам — каждая капля остаётся.',par:55},
- {name:'Тюльпановые тропы',species:'tulip',final:'Королевский тюльпан',biome:1,tag:'Выбери свой путь',clusters:3,density:23,finalBound:60,quota:36,targets:0,sources:0,requiredSources:0,reward:'Тюльпан',hint:'Две дорожки цветов. Выбирай, где вырасти быстрее.',par:65},
- {name:'Солнечный круг',species:'sun',final:'Солнечный цветок',biome:1,tag:'Дождь становится сильнее',clusters:4,density:24,finalBound:78,quota:0,targets:1,sources:0,requiredSources:0,reward:'Подсолнух',hint:'Расти на цветах, чтобы напоить отмеченные клумбы.',par:75},
+ {name:'Первая жизнь',species:'daisy',final:'Большая ромашка',biome:0,tag:'От капли к большому цветку',clusters:3,density:20,finalBound:64,quota:0,targets:0,sources:0,requiredSources:0,reward:'Ромашка',hint:'Начни с маленьких ростков. Вырасти — полей грядки побольше.',par:40},
+ {name:'Оазис на вырост',species:'tulip',final:'Королевский тюльпан',biome:0,tag:'Большая цель впереди',clusters:3,density:23,finalBound:84,quota:0,targets:0,sources:0,requiredSources:0,reward:'Тюльпан',hint:'Большой цветок подождёт. Найди грядку по размеру.',par:50},
+ {name:'Большое пробуждение',species:'sun',final:'Солнечный гигант',biome:0,tag:'Дорасти до гиганта',clusters:4,density:24,finalBound:130,quota:0,targets:0,sources:0,requiredSources:0,reward:'Подсолнух',hint:'Обойди гиганта: маленькие грядки помогут до него дорасти.',par:70},
  {name:'Сад бабочек',biome:3,tag:'Найди особые растения',clusters:4,density:24,finalBound:94,quota:0,targets:3,sources:0,requiredSources:0,reward:'Сакура',hint:'Звёздочкой отмечены цели. Остальные цветы помогают расти.',par:80},
  {name:'Первый ручей',biome:2,tag:'Дождь путешествует дальше',clusters:4,density:26,finalBound:98,quota:0,targets:1,sources:1,requiredSources:1,reward:'Лаванда',hint:'Наполни голубую чашу — вода оживит дальнюю клумбу.',par:85},
  {name:'Тёплая лагуна',biome:4,tag:'Полить самому или пустить воду',clusters:5,density:25,finalBound:105,quota:0,targets:2,sources:1,requiredSources:0,reward:'Гибискус',hint:'Источник помогает расти. Решай, когда к нему повернуть.',par:90},
@@ -80240,7 +80247,7 @@ const GARDENS = [
 const ROUTE_NAMES=['trail','fork','ring','butterfly','terraces','lagoon','ribbon','staircase','spiral','roofs','delta','islands'];
 const LEVELS=GARDENS.map((g,i)=>({...BIOMES[g.biome],...g,layout:ROUTE_NAMES[i],n:i+1,seed:81021+i*17431,route:i,links:g.sources>0,goalNames:['Верхний источник','Радужная чаша'],short:['Ручей','Каскад']}));
 const SHOWCASE=LEVELS.slice(0,CFG.showcaseLevels);
-SHOWCASE.forEach((a,i)=>Object.assign(a,{dry:0xc5b57a,dryDark:0x8c8751,green:0x9fce58,lawn:0xb2d666,sky:0x7bd1e4,soil:0xcda172,accent:['#338e76','#da6b7e','#c5952b'][i]}));
+SHOWCASE.forEach((a,i)=>Object.assign(a,{dry:0xe5bc82,dryDark:0xb58852,green:0x91c75b,lawn:0xe5bc82,sky:0xf2d9ac,soil:0xbe8a5c,accent:['#338e76','#da6b7e','#c5952b'][i]}));
 function levelIndex(value){return Number.isInteger(value)&&value>=0&&value<LEVELS.length?value:0;}
 function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;};}
 function cloudLevel(s){const energy=Math.max(0,typeof s==='number'?s:s.energy);let index=0;for(let i=1;i<CFG.cloudRanks.length;i++)if(energy>=CFG.cloudRanks[i].energy)index=i;
@@ -80265,9 +80272,12 @@ function validDay(day){return typeof day==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(
 function dailyFor(day){const key=validDay(day)?day:'2026-01-01';return {day:key,levelIndex:4+dayHash(key)%8,seed:dayHash(key)};}
 // Authored route shapes: topology, approach, bed pattern and ending differ per garden.
 const LAYOUTS=[
- {name:'trail',spawn:[560,1320],end:[545,935],routes:[[[560,1260],[510,1170],[590,1080],[545,1010]]],pattern:'trail',view:[560,1110,680]},
- {name:'fork',spawn:[560,1380],end:[560,900],routes:[[[540,1310],[395,1190],[410,1020],[530,960]],[[580,1310],[725,1190],[710,1020],[590,960]]],pattern:'trail',view:[560,1140,880]},
- {name:'ring',spawn:[560,1370],end:[560,1130],anchors:[[560,1130]],routes:[[[560,1300],[435,1230],[400,1100],[480,990],[640,990],[720,1100],[685,1230],[560,1300]]],pattern:'ring',view:[560,1110,840]},
+ {name:'trail',spawn:[560,1400],end:[560,675],routes:[[[560,1350],[560,1230],[500,1080],[625,1050],[490,900],[640,860],[560,675]]],
+  seedlings:[[530,1320],[590,1320],[510,1250],[570,1230],[615,1175]],beds:[[[500,1080],[625,1050]],[[490,900],[640,860]]]},
+ {name:'fork',spawn:[560,1470],end:[560,1010],routes:[[[560,1410],[400,1220],[330,1050],[390,810],[560,1010]],[[560,1410],[720,1220],[790,1050],[730,810],[560,1010]]],
+  seedlings:[[530,1390],[590,1390],[510,1325],[570,1305],[615,1270]],beds:[[[400,1220],[720,1220]],[[330,1050],[790,1050]],[[390,810],[730,810]]]},
+ {name:'ring',spawn:[560,1470],end:[560,1110],routes:[[[560,1410],[350,1330],[330,1220],[250,1070],[250,925],[340,735],[480,700],[710,700],[860,850],[875,1100],[820,1370],[560,1110]]],
+  seedlings:[[530,1390],[590,1390],[500,1335],[565,1315],[620,1305]],beds:[[[350,1330],[330,1220]],[[250,1070],[250,925]],[[340,735],[480,700]],[[710,700],[860,850]],[[875,1100],[820,1370]]]},
  {name:'butterfly',spawn:[560,1460],end:[560,360],anchors:[[410,1270],[750,1180],[330,850],[790,690]],pattern:'petals'},
  {name:'terraces',spawn:[315,1450],end:[780,410],anchors:[[330,1270],[760,1070],[330,840],[760,620]],sources:[[570,1100]],pattern:'rows'},
  {name:'lagoon',spawn:[560,1460],end:[560,335],anchors:[[350,1270],[790,1210],[850,850],[600,590],[260,800]],sources:[[225,1050]],pattern:'arc'},
@@ -80294,7 +80304,12 @@ function createState(selected=0,options={}){
    for(let row=0;row<(index<3?5:1);row++){const off=index<3?(row-2)*14:0;add((j+row)%3?'stone':'pot',p[0]+(next[0]-p[0])*q+nx*off,p[1]+(next[1]-p[1])*q+nz*off,{value:index<3?1:value});}}
  }
  const districts=[],clusters=[];
- if(index<2){for(const points of layout.routes)trail(points,index===0?16:18,index===0?2:3);}
+ if(index<3){
+  routes.push(...layout.routes.map(route=>route.map(p=>pos(...p))));
+  layout.seedlings.forEach(([x,z],j)=>add(j<2?'stone':'pot',x,z,{bound:j<2?11:18,value:j<2?1:2,bedTier:0,name:'Маленькая грядка'}));
+  const tiers=[['bench',32,7,'Узкая грядка'],['tree',46,13,'Круглая клумба'],['car',64,19,'Большая грядка'],['shop',84,28,'Цветочное поле'],['house',106,40,'Огромный сад']];
+  layout.beds.forEach((beds,k)=>beds.forEach(([x,z])=>{const [type,bound,value,name]=tiers[k];add(type,x,z,{bound,value,name,bedTier:k+1});}));
+ }
  else {
   const anchors=layout.anchors;
   if(index===2){routes.push(...layout.routes.map(route=>route.map(p=>pos(...p))));trail([[560,1300],[510,1265]],4,3);}
@@ -80326,7 +80341,7 @@ function createState(selected=0,options={}){
   }
   if(a.boost){const b=anchors[1];add('pot',b[0]+65,b[1]-70,{boost:true,bound:16,value:5,name:'Цветок ливня'});}
  }
- const final=add('tower',...layout.end,{bound:a.finalBound,value:80,name:a.final,height:index<3?a.finalBound*1.5:ART.tower.height});
+ const final=add('tower',...layout.end,{bound:a.finalBound,value:index<3?0:80,bedTier:index<3?layout.beds.length+1:undefined,name:a.final,height:index<3?a.finalBound*1.5:ART.tower.height});
  const bounds={minX:Math.min(...objects.map(o=>o.x-o.bound),spawn.x)-90,maxX:Math.max(...objects.map(o=>o.x+o.bound),spawn.x)+90,minZ:Math.min(...objects.map(o=>o.z-o.bound),spawn.z)-100,maxZ:Math.max(...objects.map(o=>o.z+o.bound),spawn.z)+90};
  if(index<CFG.showcaseLevels&&bounds.maxX-bounds.minX<CFG.islandMinWidth){const cx=(bounds.minX+bounds.maxX)/2;bounds.minX=cx-CFG.islandMinWidth/2;bounds.maxX=cx+CFG.islandMinWidth/2;}
  return {version:4,layoutRevision:CFG.layoutRevision,levelIndex:index,layout:layout.name,routes,patches,bounds,mode:dailyKey?'daily':'campaign',dailyKey,practice:false,visiting:false,districts,finalBound:a.finalBound,player:spawn,velocity:{x:0,z:0},objects,energy:0,radius:CFG.startRadius,cleansed:0,status:'playing',now:0,startedAt:0,wonAt:null,events:[],combo:0,lastCleanseAt:-10000,lastLevelAt:-10000,boostUntil:0,cascadeCount:0,finalId:final.id};
@@ -80360,7 +80375,7 @@ function movePlayer(s,input,dt){
   if(!len&&Math.abs(s.velocity[axis])<.01)s.velocity[axis]=0;
  }
 }
-function waterNeed(o){return ['stone','pot'].includes(o.type)?CFG.smallWaterMs:CFG.captureMs+o.bound*CFG.captureSizeMs;}
+function waterNeed(o){return ['stone','pot'].includes(o.type)?CFG.smallWaterMs:o.bedTier!=null?CFG.bedWaterMs+o.bound*CFG.bedSizeMs:CFG.captureMs+o.bound*CFG.captureSizeMs;}
 function updateState(s,now){
  if(now<s.now||!Number.isFinite(now))return;s.now=now;if(s.status!=='playing')return;
  for(const o of s.objects){
@@ -80388,7 +80403,7 @@ function botInput(s){
  for(const o of s.objects){if(o.status!=='dark'||o.bound>s.radius-.5||!containment(s,o).possible||o.waterAt!=null)continue;
   const distance=Math.max(0,Math.hypot(o.x-s.player.x,o.z-s.player.z)-(s.radius-o.bound-3));
   const priority=o.type==='tower'?.03:o.linkedIds?.length?.17:o.goal?.5:1;
-  const cost=(distance+35)/Math.pow(o.value,.42)*priority;
+  const cost=(distance+35)/Math.pow(Math.max(1,o.value),.42)*priority;
   if(cost<score){score=cost;best=o;}}
  if(!best)return {x:0,z:0};const dx=best.x-s.player.x,dz=best.z-s.player.z,d=Math.hypot(dx,dz);
  if(d<Math.max(.25,s.radius-best.bound-4))return {x:0,z:0};return {x:dx/Math.max(8,d),z:dz/Math.max(8,d)};
@@ -81056,18 +81071,18 @@ function createCelebration(){
   const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.BufferAttribute(positions,3));geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));
   const points=new T.Points(geometry,new T.PointsMaterial({vertexColors:true,size:6,transparent:true,opacity:0,depthWrite:false}));
   points.frustumCulled=false;scene.add(points);
-  const beam=new T.Mesh(new T.RingGeometry(270,338,96,1,0,Math.PI),new T.ShaderMaterial({
+  const beam=new T.Mesh(new T.RingGeometry(1,1.16,96,1,0,Math.PI),new T.ShaderMaterial({
     transparent:true,depthWrite:false,side:T.DoubleSide,
     uniforms:{uAlpha:{value:0}},
     vertexShader:`varying vec2 vLocal;void main(){vLocal=position.xy;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader:`varying vec2 vLocal;uniform float uAlpha;void main(){
-      float band=clamp((length(vLocal)-270.)/68.,0.,1.);
-      vec3 c=band<.16?vec3(.66,.52,.86):band<.33?vec3(.46,.69,.86):band<.50?vec3(.54,.78,.57):band<.67?vec3(1.,.86,.43):band<.84?vec3(1.,.66,.39):vec3(.96,.48,.48);
+      float band=clamp((length(vLocal)-1.)/.16,0.,1.);
+      vec3 c=band<.16?vec3(.62,.34,.92):band<.33?vec3(.22,.62,.97):band<.50?vec3(.38,.81,.42):band<.67?vec3(1.,.86,.25):band<.84?vec3(1.,.57,.22):vec3(.98,.34,.39);
       float soft=smoothstep(0.,.06,band)*(1.-smoothstep(.94,1.,band));
       gl_FragColor=vec4(c,uAlpha*soft);
     }`,
   }));
-  const final=state.objects.find(o=>o.type==='tower');beam.position.set(final.x,70,final.z-45);beam.rotation.x=-.3;scene.add(beam);beam.visible=points.visible=false;
+  const final=state.objects.find(o=>o.type==='tower');beam.position.set(final.x,70,final.z-45);beam.rotation.x=-Math.atan2(800,640);scene.add(beam);beam.visible=points.visible=false;
   return {points,beam,seeds};
 }
 function updateCelebration(now){
@@ -81075,12 +81090,14 @@ function updateCelebration(now){
   const p=dawnProgress(now),age=state.status==='won'?Math.max(0,now-state.wonAt-CFG.activationMs)/1000:0;
   const {points,beam,seeds}=celebration;
   points.visible=beam.visible=state.status==='won'&&age>0;
-  beam.material.uniforms.uAlpha.value=Math.min(1,p*2)*.64;
+  const final=state.objects.find(o=>o.type==='tower'),radius=final.bound*2+90;
+  beam.position.set(final.x,24,final.z-final.bound*.6);beam.scale.setScalar(radius);
+  beam.material.uniforms.uAlpha.value=Math.min(1,age/1.1)*.94;
   points.material.opacity=reduced?.35:Math.min(1,age)*.8;
   const a=points.geometry.attributes.position;
   seeds.forEach((s,i)=>{
     const ready=1-Math.max(0,Math.min(1,(Math.hypot(s.x-uniforms.dawnOrigin.value.x,s.z-uniforms.dawnOrigin.value.y)-(p*2380-180))/140));
-    a.setXYZ(i,s.x+(reduced?0:Math.sin(age*.8+s.phase)*18),reduced?s.y:ready*(s.y+Math.sin(age*.55+s.phase)*28),s.z);
+    const b=state.bounds,x=b.minX+s.x/CFG.worldW*(b.maxX-b.minX),z=b.minZ+s.z/CFG.worldH*(b.maxZ-b.minZ);a.setXYZ(i,x+(reduced?0:Math.sin(age*.8+s.phase)*18),reduced?s.y:ready*(s.y+Math.sin(age*.55+s.phase)*28),z);
   });a.needsUpdate=true;
 }
 let rain;
@@ -81122,10 +81139,13 @@ function createCloud(){
 function updateCloud(now){
  if(!spirit)return;const rank=cloudLevel(state),t=reduced?0:now/1000,body=spirit.children[0],v=state.velocity||{x:0,z:0};
  const age=now-state.lastLevelAt,q=Math.max(0,age/CFG.levelPopMs),pop=!reduced&&age>=0&&q<1?Math.sin(q*Math.PI*3)*Math.exp(-q*4)*.30:0;
- const travel=reduced?0:Math.min(1,Math.hypot(v.x,v.z)/125);
- body.scale.set(rank.scale*(1-pop*.45+travel*.035),rank.scale*(1+pop-travel*.055),rank.scale*(1-pop*.25));
- body.rotation.set(reduced?0:v.z*.0008,0,reduced?0:-v.x*.0012+Math.sin(t*1.7)*.012);
- spirit.position.set(state.player.x,CFG.cloudHeight+state.radius*.12+(reduced?0:Math.sin(t*2)*1.5),state.player.z);
+ const final=state.objects.find(o=>o.type==='tower'),won=state.status==='won';
+ const retreat=won?Math.max(0,Math.min(1,(now-state.wonAt)/CFG.finaleRetreatMs)):0;
+ const slide=reduced?(won?1:0):retreat*retreat*(3-2*retreat),size=rank.scale*(1-slide*.25);
+ const travel=reduced||won?0:Math.min(1,Math.hypot(v.x,v.z)/105);
+ body.scale.set(size*(1-pop*.45+travel*.07),size*(1+pop-travel*.09),size*(1-pop*.25));
+ body.rotation.set(reduced||won?0:v.z*.0012,0,reduced?0:(won?Math.sin(t*4)*.035:-v.x*.0018+Math.sin(t*1.7)*.018));
+ spirit.position.set(state.player.x+(final.x+final.bound*1.4+70-state.player.x)*slide,CFG.cloudHeight+state.radius*.12+(reduced?0:Math.sin(t*(won?4:2.6))*(won?3:2)),state.player.z+(final.z+final.bound*1.1+60-state.player.z)*slide);
  const tint={dew:0xffffff,sun:0xffedba,rose:0xffdbe5,lilac:0xe3d8fa}[saved.style]||0xffffff;
  body.children.slice(0,6).forEach((l,i)=>l.material.color.set(i===5?new T.Color(tint).lerp(new T.Color(0xbddceb),.22):tint));
  const f=spirit.userData.face,kind=cloudMood(state,now).kind;f.kind=kind;
@@ -81165,7 +81185,7 @@ function createRain(){
 function updateRain(now){
   if(!rain)return;
   const t=reduced?0:now/1000,count=cloudLevel(state).drops;
-  rain.drops.count=rain.splashes.count=count;rain.drops.visible=rain.splashes.visible=screen!=='win'&&!reduced;
+  rain.drops.count=rain.splashes.count=count;rain.drops.visible=rain.splashes.visible=state.status==='playing'&&screen!=='win'&&!reduced;
   const d=rain.dummy,from=new T.Vector3();spirit.updateMatrixWorld(true);
   for(let i=0;i<count;i++){
     const s=rain.seeds[i],q=(t*1.3+s.phase)%1,fall=Math.min(1,q/.82),end=s.r*state.radius;
@@ -81205,36 +81225,23 @@ function rebuildEnvironment(){
  const material=color=>{if(!cache.has(color)){const m=mat(color).clone();m.userData.isScenery=true;m.userData.inkStrength=0;m.onBeforeCompile=installNightShader;cache.set(color,m);}return cache.get(color);};
  const solid=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,material(color),base,x,y,z);m.scale.set(sx,sy,sz);m.castShadow=false;return m;};
  const slab=(width,length,y,depth,color)=>{const geo=new T.ExtrudeGeometry(islandShape(width,length,60),{depth,bevelEnabled:true,bevelThickness:8,bevelSize:8,bevelSegments:3,steps:1});geo.rotateX(-Math.PI/2);return solid(geo,color,cx,y,cz);};
- slab(w+22,h+22,-43,3,0xa7e8e9);slab(w,h,-37,25,0xd5a777);slab(w,h,-17,8,0x89bf48);
+ slab(w+22,h+22,-43,3,0xc79b64);slab(w,h,-37,25,0xd5a777);slab(w,h,-17,8,0xdbad72);
  if(ground){ground.geometry.dispose();ground.geometry=new T.ShapeGeometry(islandShape(w,h,60));ground.position.set(cx,-.3,cz);}
- // A connected bed under the actual plants makes the three route shapes readable.
+ // Faint sand trails connect distinct beds; the growing green patches belong to gameplay.
  for(const route of state.routes)for(let i=1;i<route.length;i++){
-  const p=route[i-1],q=route[i],length=Math.hypot(p.x-q.x,p.z-q.z),width=state.levelIndex===2?95:100;
-  const path=solid(new T.BoxGeometry(width,1.4,length),0xc8be7d,(p.x+q.x)/2,.5,(p.z+q.z)/2);path.rotation.y=Math.atan2(q.x-p.x,q.z-p.z);
-  for(const point of [p,q])solid(new T.CylinderGeometry(width/2,width/2,1.4,20),0xc8be7d,point.x,.5,point.z);
- }
- // Second chapter has a pond separating its two flower trails.
- if(state.levelIndex===1){
-  solid(new T.CylinderGeometry(80,83,2,48),0xf0e7b0,560,1,1120,1,1,1.5);
-  solid(new T.CylinderGeometry(73,73,2,48),0x65c6d5,560,2,1120,1,1,1.5);
-  for(let j=0;j<5;j++){const x=525+random()*65,z=1055+random()*140;solid(new T.CylinderGeometry(6,6,1,16),0x81bd63,x,4,z);}
+  const p=route[i-1],q=route[i],length=Math.hypot(p.x-q.x,p.z-q.z),width=32;
+  const path=solid(new T.BoxGeometry(width,.2,length),0xe9c48d,(p.x+q.x)/2,-.1,(p.z+q.z)/2);path.rotation.y=Math.atan2(q.x-p.x,q.z-p.z);
  }
  const border=new T.Group();scene.add(border);
- const steps=Math.ceil((w+h)*2/21);
- for(let i=0;i<steps;i++){
-  const at=i/steps*(w+h)*2;let x,z;
-  if(at<w){x=cx-w/2+at;z=cz-h/2+26;}
-  else if(at<w+h){x=cx+w/2-27;z=cz-h/2+(at-w);}
-  else if(at<w*2+h){x=cx+w/2-(at-w-h);z=cz+h/2-26;}
-  else{x=cx-w/2+27;z=cz+h/2-(at-w*2-h);}
-  if(Math.abs(x-cx)>w/2-45&&Math.abs(z-cz)>h/2-45)continue;
-  grassClump(border,x,z,18,32,a.seed+i);
+ for(let i=0;i<28;i++){
+  const side=i%2?1:-1,x=cx+side*(w*.5-32-random()*18),z=cz-h*.43+random()*h*.86;
+  solid(new T.SphereGeometry(4+random()*8,8,5),i%3?0xc99e69:0xf1d4a6,x,2,z,1.2,.5,.8);
+  if(i%3===0)grassClump(border,x-side*9,z+12,7,9,a.seed+i);
  }
  mergePlantLayer(border);
- for(const m of border.children){m.material=m.material.clone();m.material.userData.isScenery=true;m.material.userData.inkStrength=0;m.material.onBeforeCompile=installNightShader;m.castShadow=false;}
- // A few stones and white daisies sit outside the playable flower ribbon.
- for(let i=0;i<24;i++){const side=i%2?1:-1,x=cx+side*(w*.5-52-random()*16),z=cz-h*.4+random()*h*.8;
-  solid(new T.SphereGeometry(3+random()*4,8,5),0xe4e8b5,x,2,z,1,.45,.8);
+ for(const m of border.children){
+  const colors=m.geometry.getAttribute('color'),dry=new T.Color(0xb89758);for(let i=0;i<colors.count;i++)colors.setXYZ(i,dry.r,dry.g,dry.b);
+  m.material=m.material.clone();m.material.userData.isScenery=true;m.material.userData.inkStrength=0;m.material.onBeforeCompile=installNightShader;m.castShadow=false;
  }
  for(const source of state.objects.filter(o=>o.linkedIds?.length))for(const id of source.linkedIds){
   const target=state.objects.find(o=>o.id===id),curve=new T.CatmullRomCurve3([new T.Vector3(source.x,3,source.z),new T.Vector3((source.x+target.x)/2+18,3,(source.z+target.z)/2),new T.Vector3(target.x,3,target.z)]);
@@ -81497,13 +81504,13 @@ function updateUI(now){
  $('#growth-value').textContent=rain.name+(state.boostUntil>now?' · '+Math.ceil((state.boostUntil-now)/1000)+' с':'');
  $('#growth-fill').style.width=rank.progress*100+'%';$('#progress-text').textContent=rank.next?state.energy+' / '+rank.next.energy:'MAX';
  $('#next-text').textContent=rank.next?'Ещё '+Math.max(0,rank.next.energy-state.energy)+' — и тучка вырастет':'Самый сильный дождь';
- $('#quest-title').textContent=(a.quota?'Расцвети ростки':'Посадки со звёздочкой')+' · '+goals.done+'/'+goals.total;
+ $('#quest-title').textContent=state.levelIndex<3?'Расти → поливай всё больше':(a.quota?'Расцвети ростки':'Посадки со звёздочкой')+' · '+goals.done+'/'+goals.total;
  const possible=state.objects.filter(o=>o.status==='dark'&&containment(state,o).possible&&o.waterAt==null);
  const priority=possible.filter(o=>o.type==='tower'||o.goal||o.linkedIds?.length);
  const target=(priority.length?priority:possible).sort((x,y)=>Math.hypot(x.x-state.player.x,x.z-state.player.z)-Math.hypot(y.x-state.player.x,y.z-state.player.z))[0];
  if(target){const angle=Math.atan2(target.x-state.player.x,state.player.z-target.z),arrow=['↑','↗','→','↘','↓','↙','←','↖'][(Math.round(angle/(Math.PI/4))+8)%8];$('#quest-sub').textContent=arrow+' '+(target.district||target.name)+(target.linkedIds?.length?' · '+target.linkedIds.length+' растений водой':'');}
  else $('#quest-sub').textContent='Дождь уже в пути';
- if(goals.complete&&state.status==='playing')$('#quest-title').textContent='Полей главный цветок';
+ if(goals.complete&&state.status==='playing'&&containment(state,state.objects.find(o=>o.type==='tower')).possible)$('#quest-title').textContent='Ты вырос! Полей главный цветок';
  if(state.status==='won'){$('#quest-title').textContent='Сад остаётся с тобой';$('#quest-sub').textContent=a.reward+' для коллекции';}
  $('#hint').style.opacity=state.cleansed<5&&screen==='playing'?'1':'0';$('#hint span').textContent=a.hint;
  if(now>toastUntil)$('#toast').classList.remove('show');
@@ -81514,12 +81521,12 @@ function updateUI(now){
 }
 function updateCamera(now){
   const follow=reduced?1:1-Math.exp(-Math.max(0,now-cameraAt)/170);cameraAt=now;
-  const q=Math.min(1,dawnProgress(now)/.88),pan=reduced?(dawnProgress(now)>=1?1:0):q*q*(3-2*q);
-  const bounds=state.bounds,centerX=(bounds.minX+bounds.maxX)/2,centerZ=(bounds.minZ+bounds.maxZ)/2;
+  const q=state.status==='won'?Math.max(0,Math.min(1,(now-state.wonAt)/CFG.finaleCameraMs)):0,pan=reduced?(state.status==='won'?1:0):q*q*(3-2*q);
+  const bounds=state.bounds,final=state.objects.find(o=>o.type==='tower'),centerX=state.levelIndex<3?final.x:(bounds.minX+bounds.maxX)/2,centerZ=state.levelIndex<3?final.z:(bounds.minZ+bounds.maxZ)/2;
   camX+=(state.player.x+(centerX-state.player.x)*pan-camX)*follow;
   camZ+=(state.player.z+(centerZ+75-state.player.z)*pan-camZ)*follow;viewRadius+=(state.radius-viewRadius)*follow*.55;
   const normal=Math.max(CFG.cameraWidth+(viewRadius-CFG.startRadius)*CFG.cameraGrowth,viewRadius*2/CFG.maxRainScreenFraction);
-  const panorama=state.levelIndex<3?Math.max(bounds.maxX-bounds.minX+160,(bounds.maxZ-bounds.minZ+130)*frame.clientWidth/frame.clientHeight*1.05):CFG.victoryCameraWidth;
+  const panorama=state.levelIndex<3?Math.max(CFG.finaleMinWidth,final.bound*CFG.finaleWidthScale):CFG.victoryCameraWidth;
   const w=normal+(panorama-normal)*pan,aspect=frame.clientWidth/frame.clientHeight,h=w/aspect;
   camera.left=-w/2;camera.right=w/2;camera.top=h/2;camera.bottom=-h/2;camera.position.set(camX,800,camZ+565);camera.lookAt(camX,0,camZ-75);camera.updateProjectionMatrix();
 }
@@ -81536,6 +81543,7 @@ function render(now){
   light.intensity=0;
   updateCloud(now);updateRain(now);updateLevelBurst(now);
   for(const dot of trail)dot.visible=false;
+  field.visible=fieldEdge.visible=state.status==='playing';
   field.position.set(state.player.x,1.7,state.player.z);field.scale.setScalar(state.radius);
   fieldEdge.position.set(state.player.x,2,state.player.z);fieldEdge.scale.setScalar(state.radius);fieldEdge.material.uniforms.uWidth.value=CFG.rainEdgeWidth*(camera.right-camera.left)/frame.clientWidth/state.radius;
   let label=null,labelText='',labelKind='dark',best=Infinity;
@@ -81550,7 +81558,7 @@ function render(now){
       m.outline.material.uniforms.uOpacity.value=c.watering?.95:.23;
       m.outline.material.uniforms.uActivated.value=0;
       if(c.visible&&c.distance<best){best=c.distance;label=o;
-        labelText=!c.unlocked?'Сначала напои отмеченные цели':c.watering?'Полив '+Math.round(p*100)+'%':c.possible?['stone','pot'].includes(o.type)?'Капли останутся на лепестках':'Накрой дождём целиком':'Подрасти, чтобы полить';
+        labelText=!c.unlocked?'Сначала напои отмеченные цели':c.watering?'Полив '+Math.round(p*100)+'%':c.possible?['stone','pot'].includes(o.type)?'Капли останутся на лепестках':'Накрой дождём целиком':'Нужна тучка '+(CFG.cloudRanks.findIndex(r=>r.radius>=o.bound)+1)+' уровня';
       }
     }
   }
@@ -81566,7 +81574,7 @@ function render(now){
   }
   updateCamera(now);renderNight();renderLightCaptions(now);
   const el=$('#object-label');
-  if(label&&label.value>3&&screen==='playing'&&state.status==='playing'&&now-feedback.activatedAt>=CFG.captionDelayMs+CFG.captionMs&&state.cleansed<6){
+  if(label&&(label.value>3||label.type==='tower')&&screen==='playing'&&state.status==='playing'&&now-feedback.activatedAt>=CFG.captionDelayMs+CFG.captionMs){
     const v=new T.Vector3(label.x,label.height+14,label.z).project(camera);
     el.textContent=labelText;el.setAttribute('data-kind',labelKind);
     const edge=el.offsetWidth/2+8;
@@ -81713,13 +81721,28 @@ function startGame(selected=state.levelIndex,practice=false,options={}){
  $('#autobot').checked=$('#reveal').checked=false;$('#radius').value=state.radius;$('#speed').value='1';clock.rate=1;clock.reset();clock.offset=state.now;lastFrame=state.now;cameraAt=state.now;trailAt=state.now;accumulator=0;lastSaveAt=state.now;
  motionX=motionZ=0;motionAt=state.now;priorPlayer={...state.player};camX=state.player.x;camZ=state.player.z;viewRadius=state.radius;
  uniforms.dawn.value=0;clearInput();rebuildEnvironment();resetModels();applyTheme();
- if(celebration){const final=state.objects.find(o=>o.type==='tower');celebration.beam.position.set(final.x,70,final.z-45);}
+
  setScreen('playing');audio.start();checkpoint();log('event',restored?'level.resume':'level.start',theme().name);
 }
 const raycaster=new T.Raycaster(),plane=new T.Plane(new T.Vector3(0,1,0),0);
 function worldPoint(clientX,clientY){const r=frame.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((clientX-r.left)/r.width*2-1,-(clientY-r.top)/r.height*2+1),camera);const p=new T.Vector3();raycaster.ray.intersectPlane(plane,p);return {x:p.x,z:p.z};}
-stage.addEventListener('pointerdown',e=>{if(screen!=='playing'||input.id!==null)return;audio.init();input.id=e.pointerId;input.startX=input.lastX=e.clientX;input.startY=input.lastY=e.clientY;input.drag=false;input.target=null;try{stage.setPointerCapture(e.pointerId);}catch{}lastInputAt=clock.now();const r=frame.getBoundingClientRect();$('#joy').style.left=e.clientX-r.left-46+'px';$('#joy').style.top=e.clientY-r.top-46+'px';log('input','pointer.down');});
-stage.addEventListener('pointermove',e=>{if(e.pointerId!==input.id)return;const dx=e.clientX-input.startX,dy=e.clientY-input.startY;input.lastX=e.clientX;input.lastY=e.clientY;const d=Math.hypot(dx,dy);if(d>CFG.tapThreshold)input.drag=true;if(!input.drag)return;const k=Math.min(d,CFG.joystickRadius)/Math.max(1,d);input.x=dx*k/CFG.joystickRadius;input.z=dy*k/CFG.joystickRadius;$('#joy').style.display='block';$('#joy-knob').style.transform='translate('+dx*k*.7+'px,'+dy*k*.7+'px)';});
+stage.addEventListener('pointerdown',e=>{if(screen!=='playing'||input.id!==null)return;audio.init();input.id=e.pointerId;input.startX=input.lastX=e.clientX;input.startY=input.lastY=e.clientY;input.drag=false;input.turn=null;input.target=null;try{stage.setPointerCapture(e.pointerId);}catch{}lastInputAt=clock.now();const r=frame.getBoundingClientRect();$('#joy').style.left=e.clientX-r.left-46+'px';$('#joy').style.top=e.clientY-r.top-46+'px';log('input','pointer.down');});
+stage.addEventListener('pointermove',e=>{
+ if(e.pointerId!==input.id)return;
+ const stepX=e.clientX-input.lastX,stepY=e.clientY-input.lastY,step=Math.hypot(stepX,stepY);
+ // A purposeful turn uses the recent finger position, never the far-away original press.
+ if(input.drag&&step>0&&stepX*input.x+stepY*input.z<-step*Math.hypot(input.x,input.z)*.35){
+  input.turn??={x:input.lastX,y:input.lastY};
+  if(Math.hypot(e.clientX-input.turn.x,e.clientY-input.turn.y)>=CFG.joystickReversePx){input.startX=input.turn.x;input.startY=input.turn.y;input.turn=null;}
+ }else if(step>0)input.turn=null;
+ let dx=e.clientX-input.startX,dy=e.clientY-input.startY,d=Math.hypot(dx,dy);
+ input.lastX=e.clientX;input.lastY=e.clientY;
+ if(d>CFG.tapThreshold)input.drag=true;if(!input.drag)return;
+ if(d>CFG.joystickRadius){const extra=1-CFG.joystickRadius/d;input.startX+=dx*extra;input.startY+=dy*extra;dx*=1-extra;dy*=1-extra;d=CFG.joystickRadius;}
+ input.x=dx/CFG.joystickRadius;input.z=dy/CFG.joystickRadius;
+ const r=frame.getBoundingClientRect();$('#joy').style.left=input.startX-r.left-46+'px';$('#joy').style.top=input.startY-r.top-46+'px';$('#joy').style.display='block';
+ $('#joy-knob').style.transform='translate('+dx*.7+'px,'+dy*.7+'px)';
+});
 function pointerUp(e){if(e.pointerId!==input.id)return;if(e.type==='pointercancel')state.velocity={x:0,z:0};if(e.type!=='pointercancel'&&!input.drag){const point=worldPoint(e.clientX,e.clientY);
  const target=state.objects.filter(o=>o.status==='dark'&&containment(state,o).possible&&Math.hypot(point.x-o.x,point.z-o.z)<o.bound+12).sort((a,b)=>Math.hypot(point.x-a.x,point.z-a.z)-Math.hypot(point.x-b.x,point.z-b.z))[0];input.target=target?{x:target.x,z:target.z}:point;}input.id=null;input.x=input.z=0;$('#joy').style.display='none';log('input',e.type);}
 stage.addEventListener('pointerup',pointerUp);stage.addEventListener('pointercancel',pointerUp);stage.addEventListener('lostpointercapture',e=>{if(e.pointerId===input.id)pointerUp({pointerId:e.pointerId,type:'pointercancel'});});
